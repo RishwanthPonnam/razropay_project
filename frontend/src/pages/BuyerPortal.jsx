@@ -321,17 +321,25 @@ export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
   // ── Derived display values ────────────────────────────────────────────────
   const budget = extractBudgetFromIntent(intentData?.intent, query);
   const dispQuery = intentData?.intent?.search_query || intentData?.intent?.product_type || query;
+  const finalAgreedPrice = agreedPrice || negSession?.agreed_price || selectedProduct?.price;
 
   // ── Reset ─────────────────────────────────────────────────────────────────
   const matchedRef = useRef(null);
   const dealRef = useRef(null);
+  const paymentCtaRef = useRef(null);
 
   useEffect(() => {
     if (stage === STAGE.MATCHED && matchedRef.current) {
       matchedRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    if (stage === STAGE.AGREED && dealRef.current) {
-      dealRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (stage === STAGE.AGREED) {
+      setTimeout(() => {
+        if (paymentCtaRef.current) {
+          paymentCtaRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (dealRef.current) {
+          dealRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+      }, 100);
     }
   }, [stage]);
 
@@ -427,29 +435,51 @@ export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
         }
       );
 
-      setNegSession(session);
+      const resolvedSession = {
+        ...session,
+        id: session?.id || session?.negotiation_id || result?.negotiation_id
+      };
+      setNegSession(resolvedSession);
 
       // Fetch full event log
-      let fullStatus = result?.status || session?.status;
-      let fullAgreedPrice = result?.agreed_price || session?.agreed_price;
+      let fullStatus = result?.status || session?.status || 'ACTIVE';
+      let fullAgreedPrice = result?.agreed_price || result?.final_price || session?.agreed_price || null;
       let events = [];
 
-      if (session?.id) {
+      if (resolvedSession?.id) {
         try {
-          const fullNeg = await aiApi.getNegotiation(session.id);
+          const fullNeg = await aiApi.getNegotiation(resolvedSession.id);
           events = fullNeg?.events || [];
           if (fullNeg?.status) fullStatus = fullNeg.status;
           if (fullNeg?.agreed_price) fullAgreedPrice = fullNeg.agreed_price;
+          if (!fullAgreedPrice && fullNeg?.summary?.agreed_price) {
+            fullAgreedPrice = fullNeg.summary.agreed_price;
+          }
         } catch (_) { /* non-fatal */ }
       }
 
-      setNegEvents(events);
-      setNegStatus(fullStatus);
-      setAgreedPrice(fullAgreedPrice);
+      // Check if negotiation reached an agreement
+      const isAgreed = fullStatus === 'AGREED' || fullStatus === 'ACCEPTED' ||
+        events.some(e => 
+          e.decision === 'AGREED' || e.decision === 'ACCEPT' ||
+          e.event_type === 'AGREEMENT_REACHED' || e.event_type === 'BUYER_ACCEPT' || e.event_type === 'MERCHANT_ACCEPT'
+        );
 
-      if (fullStatus === 'AGREED') {
+      if (!fullAgreedPrice && events.length > 0) {
+        const lastPricedEvt = events.slice().reverse().find(e => e.proposed_price);
+        if (lastPricedEvt) fullAgreedPrice = lastPricedEvt.proposed_price;
+      }
+
+      setNegEvents(events);
+
+      if (isAgreed) {
+        const finalPrice = fullAgreedPrice || product.price;
+        setNegStatus('AGREED');
+        setAgreedPrice(finalPrice);
         setStage(STAGE.AGREED);
       } else {
+        setNegStatus(fullStatus);
+        setAgreedPrice(fullAgreedPrice);
         setError(
           fullStatus === 'REJECTED'
             ? "I couldn't reach a deal within your budget this time. You can try a different product or adjust your budget."
@@ -497,13 +527,17 @@ export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
 
   // ── STEP 3: Razorpay Checkout ─────────────────────────────────────────────
   const handlePayment = async () => {
-    if (!negSession?.id) return;
+    const negotiationId = negSession?.id || negSession?.negotiation_id;
+    if (!negotiationId) {
+      setError("Unable to find negotiation session ID for payment.");
+      return;
+    }
     setStage(STAGE.PAYING);
     setError(null);
 
     try {
       // Calls POST /api/payments/transactions/ (same as existing pipeline)
-      const txn = await aiApi.initiatePayment(negSession.id);
+      const txn = await aiApi.initiatePayment(negotiationId);
 
       await launchRazorpayCheckout({
         txn,
@@ -779,7 +813,7 @@ export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
         )}
 
         {/* ── AGREED: Deal + Payment Button ──────────────────────────────── */}
-        {stage === STAGE.AGREED && agreedPrice && selectedProduct && (
+        {stage === STAGE.AGREED && selectedProduct && (
           <div ref={dealRef} className="card" style={{ padding: 0, overflow: 'hidden', boxShadow: '0 6px 28px rgba(0,0,0,0.07)', border: '1px solid var(--border)' }}>
 
             {/* Negotiation Chat Log */}
@@ -791,11 +825,48 @@ export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
                 {negEvents.map((ev, i) => (
                   <ChatBubble key={i} ev={ev} merchantName={merchant?.business_name} />
                 ))}
+
+                {/* Immediate Action Bar right after the last agreement message */}
+                <div style={{
+                  marginTop: 10,
+                  padding: '14px 18px',
+                  background: 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(67,97,238,0.06) 100%)',
+                  border: '1.5px solid rgba(16,185,129,0.4)',
+                  borderRadius: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                      <CheckCircle2 size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>
+                        Commercial agreement reached at ₹{Number(finalAgreedPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                        Your deal is locked and ready for payment
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-success"
+                    style={{ padding: '10px 22px', fontSize: 14, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8, borderRadius: 8, boxShadow: '0 2px 8px rgba(16,185,129,0.3)' }}
+                    onClick={handlePayment}
+                    disabled={stage === STAGE.PAYING}
+                  >
+                    <CreditCard size={16} />
+                    <span>{stage === STAGE.PAYING ? 'Preparing Razorpay…' : 'Proceed to Secure Payment →'}</span>
+                  </button>
+                </div>
               </div>
             )}
 
             {/* Deal Banner */}
-            <div style={{ padding: '28px', background: '#fff' }}>
+            <div ref={paymentCtaRef} style={{ padding: '28px', background: '#fff' }}>
               <div style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(67,97,238,0.04) 100%)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 'var(--r-lg)', padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20, marginBottom: 20 }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--success)', fontSize: 14, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -806,13 +877,13 @@ export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
                   </h2>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 6 }}>
                     <span style={{ fontSize: 32, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
-                      ₹{Number(agreedPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹{Number(finalAgreedPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
                     <span style={{ fontSize: 16, color: 'var(--text-tertiary)', textDecoration: 'line-through' }}>
                       ₹{Number(selectedProduct.price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 800, background: 'var(--success-dim)', color: 'var(--success)', padding: '3px 10px', borderRadius: 20 }}>
-                      Save ₹{(Number(selectedProduct.price) - Number(agreedPrice)).toFixed(2)} OFF
+                      Save ₹{(Number(selectedProduct.price) - Number(finalAgreedPrice)).toFixed(2)} OFF
                     </span>
                   </div>
                   {/* Buyer economics summary */}
