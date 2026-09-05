@@ -285,191 +285,7 @@ function ProgressStepper({ stage }) {
   );
 }
 
-// ─── Deal Preferences Modal ─────────────────────────────────────────────────
-function DealPreferencesModal({
-  isOpen,
-  onClose,
-  product,
-  budgetMax,
-  setBudgetMax,
-  preferredPrice,
-  setPreferredPrice,
-  onConfirm,
-  validationError
-}) {
-  if (!isOpen || !product) return null;
 
-  const catalogPrice = Number(product.price) || 0;
-  const currentBudget = parseFloat(budgetMax) || 0;
-  const currentPref = parseFloat(preferredPrice) || 0;
-
-  const discountPercent = currentBudget > 0 && currentPref > 0 && currentPref < catalogPrice
-    ? (((catalogPrice - currentPref) / catalogPrice) * 100).toFixed(0)
-    : null;
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: 'var(--r-xl)', maxWidth: 480, width: '100%',
-        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: '1px solid var(--border)',
-        overflow: 'hidden', animation: 'fadeInScale 0.2s ease-out'
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: '20px 24px', borderBottom: '1px solid var(--border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'linear-gradient(135deg, #f8faff 0%, #ffffff 100%)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: '50%', background: 'var(--primary-dim)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)'
-            }}>
-              <Bot size={20} />
-            </div>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>Set Your Deal Preferences</div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Guide your Buyer AI's negotiation bounds</div>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-tertiary)', padding: 4, borderRadius: 6, display: 'flex'
-            }}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {/* Target Product Summary */}
-          <div style={{
-            background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', padding: '14px 16px',
-            border: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-          }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Selected Product</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginTop: 2 }}>{product.name}</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Catalog Price</div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--text-primary)', marginTop: 2 }}>
-                ₹{catalogPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </div>
-            </div>
-          </div>
-
-          {/* Validation Error */}
-          {validationError && (
-            <div style={{
-              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
-              borderRadius: 'var(--r-md)', padding: '10px 14px', fontSize: 12, color: 'var(--danger)',
-              fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8
-            }}>
-              <AlertCircle size={15} />
-              <span>{validationError}</span>
-            </div>
-          )}
-
-          {/* Input 1: Maximum Budget */}
-          <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
-              Maximum Budget (Ceiling) <span style={{ color: 'var(--danger)' }}>*</span>
-            </label>
-            <div style={{
-              display: 'flex', alignItems: 'center', border: '1.5px solid var(--border)',
-              borderRadius: 'var(--r-md)', padding: '0 12px', background: '#fff',
-              boxShadow: 'var(--shadow-xs)'
-            }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-tertiary)', marginRight: 6 }}>₹</span>
-              <input
-                type="number"
-                placeholder={`e.g. ${catalogPrice}`}
-                value={budgetMax}
-                onChange={(e) => setBudgetMax(e.target.value)}
-                style={{
-                  border: 'none', outline: 'none', padding: '12px 0', fontSize: 15,
-                  fontWeight: 700, color: 'var(--text-primary)', width: '100%', background: 'transparent'
-                }}
-              />
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
-              The absolute maximum you are willing to pay. The Buyer AI will walk away above this price.
-            </div>
-          </div>
-
-          {/* Input 2: Preferred / Target Price */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                Target / Preferred Price (Optional)
-              </label>
-              {discountPercent && discountPercent > 0 && (
-                <span style={{
-                  fontSize: 11, fontWeight: 800, background: 'var(--success-dim)',
-                  color: 'var(--success)', padding: '2px 8px', borderRadius: 12
-                }}>
-                  {discountPercent}% Target Discount
-                </span>
-              )}
-            </div>
-            <div style={{
-              display: 'flex', alignItems: 'center', border: '1.5px solid var(--border)',
-              borderRadius: 'var(--r-md)', padding: '0 12px', background: '#fff',
-              boxShadow: 'var(--shadow-xs)'
-            }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-tertiary)', marginRight: 6 }}>₹</span>
-              <input
-                type="number"
-                placeholder={`e.g. ${(catalogPrice * 0.85).toFixed(0)}`}
-                value={preferredPrice}
-                onChange={(e) => setPreferredPrice(e.target.value)}
-                style={{
-                  border: 'none', outline: 'none', padding: '12px 0', fontSize: 15,
-                  fontWeight: 700, color: 'var(--text-primary)', width: '100%', background: 'transparent'
-                }}
-              />
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
-              Your ideal dream price. If left blank, the Buyer AI will target 15% below maximum budget.
-            </div>
-          </div>
-        </div>
-
-        {/* Footer Actions */}
-        <div style={{
-          padding: '16px 24px', background: 'var(--bg-subtle)', borderTop: '1px solid var(--border)',
-          display: 'flex', justifyContent: 'flex-end', gap: 12
-        }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={onClose}
-            style={{ fontSize: 13, padding: '10px 18px' }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={onConfirm}
-            style={{ fontSize: 13, fontWeight: 700, padding: '10px 22px', display: 'flex', alignItems: 'center', gap: 6 }}
-          >
-            <Bot size={15} />
-            <span>Start AI Negotiation</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
@@ -649,33 +465,32 @@ export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
 
   const handleNegotiate = (product) => {
     const naturalBudget = budget || extractBudgetFromIntent(intentData?.intent, query);
-    if (naturalBudget) {
-      // Natural language budget is present — proceed immediately
-      executeNegotiation(
-        product,
-        naturalBudget,
-        intentData?.intent?.preferred_price || parseFloat((naturalBudget * 0.85).toFixed(2))
-      );
-    } else {
-      // No natural language budget — prompt user in modal
-      setPendingProduct(product);
-      setModalBudgetMax('');
-      setModalPreferredPrice('');
-      setModalValidationError(null);
-      setShowDealModal(true);
-    }
+    setPendingProduct(product);
+    // Prefill Maximum Budget with natural language budget if present in search query
+    setModalBudgetMax(naturalBudget ? String(naturalBudget) : '');
+    // Target Price: prefill from intent if explicitly parsed, or empty
+    const naturalPref = intentData?.intent?.preferred_price ? String(intentData.intent.preferred_price) : '';
+    setModalPreferredPrice(naturalPref);
+    setModalValidationError(null);
+    setShowDealModal(true);
   };
 
   const handleStartNegotiation = () => {
     const bMax = parseFloat(modalBudgetMax);
     if (!bMax || isNaN(bMax) || bMax <= 0) {
-      setModalValidationError('Please enter a valid maximum budget greater than 0.');
+      setModalValidationError('Please enter a valid maximum budget greater than ₹0.');
       return;
     }
-    const pPref = modalPreferredPrice ? parseFloat(modalPreferredPrice) : null;
-    if (pPref !== null && (!isNaN(pPref) && (pPref <= 0 || pPref > bMax))) {
-      setModalValidationError('Preferred price must be greater than 0 and not exceed your maximum budget.');
-      return;
+    const pPref = modalPreferredPrice && modalPreferredPrice.toString().trim() !== '' ? parseFloat(modalPreferredPrice) : null;
+    if (pPref !== null && !isNaN(pPref)) {
+      if (pPref <= 0) {
+        setModalValidationError('Target price must be greater than ₹0.');
+        return;
+      }
+      if (pPref > bMax) {
+        setModalValidationError('Target price cannot exceed your maximum budget (₹' + bMax.toLocaleString('en-IN') + ').');
+        return;
+      }
     }
     executeNegotiation(pendingProduct, bMax, pPref);
   };
@@ -1154,7 +969,12 @@ export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
             <div style={{ padding: '0 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Maximum Budget */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>What's your maximum budget?</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    What's the maximum you're willing to pay? <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Maximum Budget</span>
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', border: '2px solid var(--border)', borderRadius: 10, padding: '0 12px', transition: 'border-color 0.15s', background: '#fff' }}
                   onFocus={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
                   onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
@@ -1169,11 +989,19 @@ export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
                     autoFocus
                   />
                 </div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                  Maximum Budget — The highest amount you will pay.
+                </div>
               </div>
 
               {/* Preferred Price */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>What price would you like to get?</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    What price would you like to get?
+                  </label>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Target Price</span>
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', border: '2px solid var(--border)', borderRadius: 10, padding: '0 12px', transition: 'border-color 0.15s', background: '#fff' }}
                   onFocus={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
                   onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
@@ -1187,12 +1015,15 @@ export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
                     style={{ flex: 1, border: 'none', outline: 'none', fontSize: 16, fontWeight: 600, padding: '12px 4px', background: 'transparent', color: 'var(--text-primary)' }}
                   />
                 </div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                  Target Price — Your desired price. The Buyer AI will aim for this without exceeding your budget.
+                </div>
               </div>
 
               {/* Helper text */}
               <div style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5, padding: '4px 0' }}>
                 <ShieldCheck size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
-                Your Buyer AI will negotiate toward your preferred price while never exceeding your maximum budget.
+                Your Buyer AI will negotiate toward your target price while strictly respecting your maximum budget ceiling.
               </div>
 
               {/* Validation error */}
@@ -1219,7 +1050,7 @@ export default function BuyerPortal({ merchant, onSwitchToMerchant }) {
                 style={{ padding: '10px 24px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, boxShadow: '0 4px 12px rgba(67,97,238,0.25)' }}
               >
                 <Bot size={16} />
-                <span>Continue to AI Negotiation →</span>
+                <span>Start AI Negotiation</span>
               </button>
             </div>
           </div>
