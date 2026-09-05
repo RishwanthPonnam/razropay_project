@@ -61,6 +61,79 @@ const safeCustomerMessage = (ev) => {
 };
 
 
+// ─── Chat Bubble for AI-to-AI Negotiation ──────────────────────────────────
+function ChatBubble({ ev, merchantName }) {
+  const isBuyer = ev?.sender === 'BUYER' || ev?.agent === 'BUYER';
+  const message = safeCustomerMessage(ev);
+  const round = ev?.round_number || ev?.round || 1;
+  const price = ev?.proposed_price || ev?.offer_price || ev?.price;
+  const action = ev?.action;
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: isBuyer ? 'flex-end' : 'flex-start',
+      gap: 4,
+      width: '100%',
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 11,
+        fontWeight: 700,
+        color: isBuyer ? 'var(--cyan)' : 'var(--primary)',
+        padding: '0 4px',
+      }}>
+        {isBuyer ? <Bot size={13} /> : <Store size={13} />}
+        <span>{isBuyer ? 'Buyer AI' : (merchantName || 'Merchant AI')}</span>
+        <span style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>· Round {round}</span>
+        {action && (
+          <span style={{
+            fontSize: 10,
+            padding: '1px 6px',
+            borderRadius: 10,
+            background: action === 'ACCEPT' ? 'var(--success-dim)' : action === 'REJECT' ? 'rgba(239,68,68,0.1)' : 'var(--bg-subtle)',
+            color: action === 'ACCEPT' ? 'var(--success)' : action === 'REJECT' ? 'var(--danger)' : 'var(--text-secondary)',
+            fontWeight: 800,
+            textTransform: 'uppercase',
+          }}>
+            {action}
+          </span>
+        )}
+      </div>
+
+      <div style={{
+        maxWidth: '85%',
+        padding: '12px 16px',
+        borderRadius: 14,
+        background: isBuyer ? 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)' : '#fff',
+        border: isBuyer ? '1px solid #7dd3fc' : '1px solid var(--border)',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+        color: 'var(--text-primary)',
+        fontSize: 13,
+        lineHeight: 1.5,
+      }}>
+        <div>{message}</div>
+        {price && (
+          <div style={{
+            marginTop: 6,
+            fontSize: 12,
+            fontWeight: 800,
+            color: isBuyer ? '#0369a1' : 'var(--primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}>
+            <span>Offer: ₹{Number(price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Product Card ───────────────────────────────────────────────────────────
 function ProductCard({ product, budget, preferredPrice, onNegotiate, negotiating }) {
   const inStock = (product.inventory_quantity || 0) > 0;
