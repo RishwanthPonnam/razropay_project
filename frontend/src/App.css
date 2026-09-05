@@ -1,0 +1,26 @@
+/* App.css — minimal overrides for light theme */
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+option {
+  background: #fff;
+  color: #111827;
+}
+
+textarea.textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+
+.main-column > .page-scroll > * {
+  animation: fade-up 0.18s ease-out;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(67, 97, 238, 0.15);
+  color: var(--text-primary);
+}
